@@ -1,5 +1,5 @@
 [package]
-name = "code-to-md"
+name = "decoder"
 version = "0.1.0"
 edition = "2021"
 
