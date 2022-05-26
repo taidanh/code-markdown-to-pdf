@@ -53,7 +53,7 @@ fn main() {
             std::process::exit(1);
         });
     let file = File::open(&args.input).expect("Unable to open file");
-    let temp_file = format!("{}.temp", thread_rng().sample_iter(&Alphanumeric).take(10).map(char::from).collect::<String>());
+    let temp_file = format!("{}.md", thread_rng().sample_iter(&Alphanumeric).take(10).map(char::from).collect::<String>());
     let temp = File::create(&temp_file).expect("Failed to create temp file");
     parse(&file, &args.ft, &temp, &args.comment);
     convert_file(&temp_file, &args.output);
