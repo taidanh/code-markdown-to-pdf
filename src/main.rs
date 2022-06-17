@@ -1,10 +1,10 @@
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::{BufReader, BufWriter};
-use std::env;
-use rand::prelude::*;
+pub mod parser;
+
+use pandoc::{OutputKind, Pandoc};
 use rand::distributions::Alphanumeric;
-use pandoc::{Pandoc, OutputKind};
+use rand::prelude::*;
+use std::env;
+use std::fs::File;
 
 struct Args {
     input: String,
@@ -47,61 +47,68 @@ impl Args {
 
 fn main() {
     let env_args: Vec<String> = env::args().collect();
-    let args = Args::new(&env_args)
-        .unwrap_or_else(|err| {
-            println!("Problem parsing arguments: {}", err);
-            std::process::exit(1);
-        });
-    let file = File::open(&args.input).expect("Unable to open file");
-    let temp_file = format!("{}.md", thread_rng().sample_iter(&Alphanumeric).take(10).map(char::from).collect::<String>());
-    let temp = File::create(&temp_file).expect("Failed to create temp file");
-    parse(&file, &args.ft, &temp, &args.comment);
+    let args = Args::new(&env_args).unwrap_or_else(|err| {
+        println!("Problem parsing arguments: {}", err);
+        std::process::exit(1);
+    });
+    let temp_file = format!(
+        "{}.md",
+        thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(10)
+            .map(char::from)
+            .collect::<String>()
+    );
+    let mut parser = parser::Parser::new(&args.ft, &args.comment, &args.input, &temp_file);
+    parser.parse();
     convert_file(&temp_file, &args.output);
 }
 
-fn parse(file: &File, ft: &str, temp_file: &File, comment: &str) {
-    let reader = BufReader::new(file);
-    let mut writer = BufWriter::new(temp_file);
-    let mut code_block = false;
+// fn parse(file: &File, ft: &str, temp_file: &File, comment: &str) {
+//     let reader = BufReader::new(file);
+//     let mut writer = BufWriter::new(temp_file);
+//     let mut code_block = false;
+//     let mut indent: usize = 0;
 
-    for line in reader.lines() {
-        let line = line.unwrap();
+//     for line in reader.lines() {
+//         let line = line.unwrap();
 
-        if !line.starts_with(comment) && line.trim().len() > 0 {
-            if !code_block {
-                code_block = true;
-                writer.write(format!("\n```{}\n", ft).as_bytes()).unwrap();
-            }
-            writer.write(format!("{}\n", &line).as_bytes()).unwrap();
-            writer.write("\n".as_bytes()).unwrap();
+//         if !line.starts_with(comment) && line.trim().len() > 0 {
+//             if !code_block {
+//                 code_block = true;
+//                 writer.write(format!("\n```{}\n", ft).as_bytes()).unwrap();
+//                 indent = 0;
+//             }
+//             writer.write(format!("{}\n", &line).as_bytes()).unwrap();
+//             writer.write("\n".as_bytes()).unwrap();
+//
+//         } else if line.trim().len() > 0 {
+//             if code_block {
+//                 code_block = false;
+//                 writer.write("\n```\n".as_bytes()).unwrap();
+//             }
+//             writer.write(format!("{}\n", parse_line(&line, comment, indent)).as_bytes()).unwrap();
+//             writer.write("\n".as_bytes()).unwrap();
+//         }
+//     }
 
-        } else if line.trim().len() > 0 {
-            if code_block {
-                code_block = false;
-                writer.write("\n```\n".as_bytes()).unwrap();
-            }
-            writer.write(format!("{}\n", parse_line(&line, comment)).as_bytes()).unwrap();
-            writer.write("\n".as_bytes()).unwrap();
-        }
-    }
+//     if code_block {
+//         writer.write("\n```\n".as_bytes()).unwrap();
+//     }
+// }
 
-    if code_block {
-        writer.write("\n```\n".as_bytes()).unwrap();
-    }
-}
-
-fn parse_line(line: &str, comment: &str) -> String {
-    if line.starts_with(comment) {
-        for c in comment.len()..line.len() {
-            if line.chars().nth(c).unwrap() != ' ' {
-                return line[c..].to_string();
-            }
-        }
-        "\n".to_string()
-    } else {
-        line.to_string()
-    }
-}
+// fn parse_line(line: &str, comment: &str, indent: &mut usize) -> (usize, String) {
+//     if line.starts_with(comment) {
+//         for c in comment.len()..line.len() {
+//             if line.chars().nth(c).unwrap() != ' ' {
+//                 return (c, line[c..].to_string());
+//             }
+//         }
+//         (0, "\n".to_string())
+//     } else {
+//         (0, line.to_string())
+//     }
+// }
 
 fn convert_file(temp_file: &str, output: &str) {
     let mut pandoc = Pandoc::new();
